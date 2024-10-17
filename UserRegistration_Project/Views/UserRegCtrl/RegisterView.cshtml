@@ -1,0 +1,202 @@
+﻿@model UserRegistration_Project.Models.UserRegistrationModel
+
+@{
+    ViewBag.Title = "User Registration";
+}
+
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-primary text-white text-center">
+            <h2 id="formTitle">User Registration</h2>
+        </div>
+        <div class="card-body">
+        
+            @if (ViewBag.Message != null)
+            {
+                <div class="alert alert-success">
+                    @ViewBag.Message
+                </div>
+            }
+
+            @using (Html.BeginForm("Save", "UserRegCtrl", FormMethod.Post, new { id = "userForm" }))
+            {
+              
+                @Html.HiddenFor(m => m.Id)
+
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        @Html.LabelFor(m => m.Name, "Name:", new { @class = "form-label" })
+                        @Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+                        @Html.ValidationMessageFor(m => m.Name, "", new { @class = "text-danger" })
+                    </div>
+                    <div class="col-md-6">
+                        @Html.LabelFor(m => m.Mobile, "Mobile no:", new { @class = "form-label" })
+                        @Html.TextBoxFor(m => m.Mobile, new { @class = "form-control" })
+                        @Html.ValidationMessageFor(m => m.Mobile, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        @Html.LabelFor(m => m.StateId, "State:", new { @class = "form-label" })
+                        @Html.DropDownListFor(m => m.StateId, (SelectList)ViewBag.States, "-- Select State --", new { @class = "form-select", id = "stateDropdown" })
+                        @Html.ValidationMessageFor(m => m.StateId, "", new { @class = "text-danger" })
+                    </div>
+                    <div class="col-md-6">
+                        @Html.LabelFor(m => m.CityId, "City:", new { @class = "form-label" })
+                        @Html.DropDownListFor(m => m.CityId, (SelectList)ViewBag.Cities, "-- Select City --", new { @class = "form-select", id = "cityDropdown" })
+                        @Html.ValidationMessageFor(m => m.CityId, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        @Html.LabelFor(m => m.Address, "Address:", new { @class = "form-label" })
+                        @Html.TextBoxFor(m => m.Address, new { @class = "form-control" })
+                        @Html.ValidationMessageFor(m => m.Address, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+
+               
+                <div class="text-center">
+                    <button type="submit" class="btn btn-success btn-lg px-5">Save</button>
+                    <button type="button" class="btn btn-secondary btn-lg px-5 d-none" id="cancelButton" onclick="cancelEdit()">Cancel</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <h3 class="text-center mb-4">Registered Users</h3>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-bordered" id="userTable">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Sr. No</th>
+                    <th>Name</th>
+                    <th>Mobile</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+               
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    @Scripts.Render("~/bundles/jquery")
+
+<script type="text/javascript">
+       $(document).ready(function () {
+    $('#stateDropdown').change(function () {
+        var stateId = $(this).val();
+        if (stateId) {
+            $.getJSON('@Url.Action("GetCities", "UserRegCtrl")', { stateId: stateId }, function (data) {
+                var cityDropdown = $('#cityDropdown');
+                cityDropdown.empty();
+                cityDropdown.append('<option value="">-- Select City --</option>');
+                $.each(data, function (index, item) {
+                    cityDropdown.append('<option value="' + item.Value + '">' + item.Text + '</option>');
+                });
+            });
+        } else {
+            $('#cityDropdown').empty();
+            $('#cityDropdown').append('<option value="">-- Select City --</option>');
+        }
+    });
+
+    loadUsers();
+
+   
+    $('#userForm').submit(function (event) {
+        event.preventDefault(); 
+
+        $.ajax({
+            url: '@Url.Action("Save", "UserRegCtrl")',
+            type: 'POST',
+            data: $(this).serialize(), 
+            success: function (response) {
+                if (response.success) {
+                   
+                    $('#userForm')[0].reset();
+
+                    
+                    if (userId && userId > 0) {
+                        alert("User updated successfully!");
+                        loadUsers();
+                    } else {
+                        alert("User inserted successfully!");
+                        loadUsers();
+                    }
+                   
+                   
+                   
+                } 
+            },
+            error: function (xhr, status, error) {
+                
+                alert("An error occurred: " + error);
+            }
+        });
+    });
+});
+
+
+function loadUsers() {
+    $.ajax({
+        url: '@Url.Action("GetUsers", "UserRegCtrl")',
+        success: function (users) {
+            var userTable = $('#userTable tbody');
+            userTable.empty();
+            $.each(users, function (index, user) {
+                userTable.append(
+                    '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td>' + user.Name + '</td>' +
+                    '<td>' + user.Mobile + '</td>' +
+                    '<td><button type="button" class="btn btn-primary btn-sm" onclick="editUser(' + user.Id + ')">Edit</button></td>' +
+                    '</tr>'
+                );
+            });
+        }
+    });
+}
+
+
+function editUser(userId) {
+    $.get('@Url.Action("GetUserById", "UserRegCtrl")', { id: userId }, function (data) {
+        if (data) {
+            $('#userForm').find('#Id').val(data.Id);
+            $('#userForm').find('#Name').val(data.Name);
+            $('#userForm').find('#Mobile').val(data.Mobile);
+            $('#userForm').find('#Address').val(data.Address);
+
+            $('#stateDropdown').val(data.StateId).change();
+            setTimeout(function () {
+                $('#cityDropdown').val(data.CityId);
+            }, 500);
+
+            $('#formTitle').text('Edit User');
+            $('#cancelButton').removeClass('d-none');
+        } else {
+            alert("User not found.");
+        }
+    }).fail(function (xhr, status, error) {
+        console.error("An error occurred while fetching user data:", error);
+        alert("An error occurred: " + error);
+    });
+}
+
+
+function cancelEdit() {
+    $('#formTitle').text('User Registration');
+    $('#userForm')[0].reset();
+    $('#cancelButton').addClass('d-none');
+}
+
+</script>
+}
